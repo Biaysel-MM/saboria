@@ -1,0 +1,94 @@
+// Prisma schema — Saboria (admin de catálogo + textos del sitio).
+// Convenciones heredadas de Fyrzia: enums/varchar explícitos, IDs autoincrement.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "cjs"
+  generatedFileExtension = "ts"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// Admin único (seed). Registro público no existe.
+model Admin {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @db.VarChar(100)
+  fullName     String   @default("Administrador") @db.VarChar(120)
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(80)
+  emoji     String    @default("🍽️") @db.VarChar(8)
+  // Imagen subida por el admin (ej. /uploads/uuid.png). Sin ella se muestra
+  // la imagen general del front (categoriaGeneral.png).
+  imageUrl  String?   @db.VarChar(500)
+  note      String?   @db.VarChar(160)
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  products  Product[]
+}
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(120)
+  // "tipo" que se muestra como chip (Malteadas, Wraps, ...)
+  tag         String    @db.VarChar(60)
+  description String?   @db.Text
+  price       Int       @default(0) // RD$ enteros
+  emoji       String    @default("🍽️") @db.VarChar(8)
+  // Imagen subida por el admin (ej. /uploads/uuid.png). Debe ser sin fondo.
+  imageUrl    String?   @db.VarChar(500)
+
+  // Paleta del producto: los gradientes del hero/tarjetas.
+  c1     String @default("#ffffff") @db.VarChar(9)
+  c2     String @default("#f0f0f0") @db.VarChar(9)
+  c3     String @default("#e0e0e0") @db.VarChar(9)
+  accent String @default("#888888") @db.VarChar(9)
+
+  categoryId Int?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  sortOrder  Int     @default(0)
+  isActive   Boolean @default(true) // oculto en todo el sitio sin borrarlo
+  isFeatured Boolean @default(true) // aparece en el hero (carrusel)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+}
+
+// Singleton: siempre existe una fila con id = 1 (la crea el seed).
+model SiteSetting {
+  id Int @id @default(1)
+
+  footerDescription String @db.Text
+  scheduleWeek      String @db.VarChar(120)
+  scheduleSaturday  String @db.VarChar(120)
+  scheduleSunday    String @db.VarChar(120)
+  address           String @db.VarChar(160)
+  phone             String @db.VarChar(40)
+  email             String @db.VarChar(120)
+
+  menuBadge  String @db.VarChar(80)
+  menuTitle  String @db.VarChar(160)
+  menuText   String @db.Text
+
+  catalogBadge String @db.VarChar(80)
+  catalogTitle String @db.VarChar(160)
+  catalogText  String @db.Text
+
+  ctaTitle String @db.VarChar(160)
+  ctaText  String @db.Text
+
+  updatedAt DateTime @updatedAt
+}

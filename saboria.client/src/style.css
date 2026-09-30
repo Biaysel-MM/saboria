@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+@property --hero-c1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffe3ec;
+}
+
+@property --hero-c2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ff8fb3;
+}
+
+@property --hero-c3 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ff4d84;
+}
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+
+  --color-ink: #241a17;
+  --color-cream: #fffaf3;
+  --color-brand: #e8467c;
+  --color-brand-deep: #c22e62;
+}
+
+html {
+  scroll-behavior: smooth;
+  transition:
+    --hero-c1 0.9s ease,
+    --hero-c2 0.9s ease,
+    --hero-c3 0.9s ease;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-cream);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+button {
+  font-family: inherit;
+}
+
+::selection {
+  background: rgba(232, 70, 124, 0.25);
+}
