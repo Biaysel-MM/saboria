@@ -55,28 +55,11 @@ const GROUPS = [
       { key: 'email', label: 'Correo', type: 'input' },
     ],
   },
-  {
-    title: 'Hero (inicio)',
-    icon: 'carbon:image',
-    fields: [
-      {
-        key: 'heroLimit',
-        label: 'Máximo de productos en el hero (1–12)',
-        type: 'number',
-        min: 1,
-        max: 12,
-      },
-    ],
-  },
 ]
 
 const savedAt = ref(null)
 
 async function save() {
-  // el límite del hero viaja como número entero dentro del rango 1–12
-  const n = Math.round(Number(settings.value.heroLimit))
-  settings.value.heroLimit = Number.isFinite(n) && n >= 1 ? Math.min(12, n) : 6
-
   busy.value = true
   try {
     await api.put('/admin/settings', settings.value)

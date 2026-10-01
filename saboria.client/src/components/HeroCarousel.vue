@@ -163,6 +163,22 @@ function onDot(index) {
   startMove(index)
 }
 
+/* ---------- paginación de puntos numerados ----------
+   Máx. 6 círculos entre las flechas. Si hay más productos que puntos,
+   los extremos (1 y N) quedan fijos y una ventana central de 4 números
+   se desliza alrededor del activo: 8 productos en el 5 => 1 3 4 5 6 8. */
+const MAX_DOTS = 6
+const visibleDots = computed(() => {
+  const n = heroProducts.value.length
+  if (n <= MAX_DOTS) return Array.from({ length: n }, (_, i) => i)
+  const a = Math.min(Math.max(active.value, 0), n - 1)
+  const middle = MAX_DOTS - 2
+  const mStart = Math.min(Math.max(a - 2, 1), n - 1 - middle)
+  const set = new Set([0, n - 1])
+  for (let k = 0; k < middle; k++) set.add(mStart + k)
+  return [...set].sort((x, y) => x - y)
+})
+
 /* ---------- puntero ---------- */
 let startX = 0
 let startY = 0
@@ -497,16 +513,18 @@ const pad = (n) => String(n).padStart(2, '0')
 
       <div class="flex items-center gap-2" role="tablist" aria-label="Seleccionar producto">
         <button
-          v-for="(p, i) in heroProducts"
-          :key="'dot-' + p.id"
+          v-for="i in visibleDots"
+          :key="'dot-' + heroProducts[i].id"
           type="button"
           class="dot"
           :class="{ active: i === active }"
           role="tab"
           :aria-selected="i === active"
-          :aria-label="p.name"
+          :aria-label="heroProducts[i].name"
           @click="onDot(i)"
-        />
+        >
+          {{ i + 1 }}
+        </button>
       </div>
 
       <button
@@ -668,27 +686,35 @@ const pad = (n) => String(n).padStart(2, '0')
 }
 
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: none;
   border-radius: 999px;
-  background: rgba(36, 26, 23, 0.24);
+  background: rgba(36, 26, 23, 0.14);
+  color: rgba(36, 26, 23, 0.55);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  display: grid;
+  place-items: center;
   cursor: pointer;
   transition:
-    width 0.45s cubic-bezier(0.22, 0.61, 0.36, 1),
     background-color 0.45s ease,
+    color 0.45s ease,
     transform 0.25s ease;
 }
 
 .dot:hover {
-  background: rgba(36, 26, 23, 0.5);
-  transform: scale(1.15);
+  background: rgba(36, 26, 23, 0.34);
+  color: #fff;
+  transform: scale(1.12);
 }
 
 .dot.active {
-  width: 28px;
   background: var(--accent);
+  color: #fff;
+  transform: scale(1.08);
 }
 
 .info-enter-active {

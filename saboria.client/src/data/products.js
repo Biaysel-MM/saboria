@@ -226,7 +226,6 @@ const seedSettings = {
   ctaTitle: '¿Se te antojó algo?',
   ctaText:
     'Pide para llevar o reserva tu mesa. Preparamos todo al momento para que llegue fresco.',
-  heroLimit: 6,
 }
 
 /* --------------------------------------------------------------- estado */
@@ -235,16 +234,14 @@ export const products = reactive([...seedProducts])
 export const categories = reactive([...seedCategories])
 export const siteTexts = reactive({ ...seedSettings })
 
-/** Productos que aparecen en el hero (los "destacados" del admin, hasta
- *  el límite configurable en Textos del sitio para no saturar los dots). */
+/** Productos que aparecen en el hero (los "destacados" del admin). Si el
+ *  admin marca más de los que caben en una tira de puntos, el carrusel
+ *  paginará los números (máx. 6 visibles). */
 export const heroProducts = computed(() => {
   const featured = products.filter((p) => p.isFeatured)
   // El sitio nunca puede quedarse sin hero: si el admin ocultó todo, usamos
   // la lista completa como último recurso.
-  const base = featured.length ? featured : products
-  const raw = Number(siteTexts.heroLimit)
-  const limit = Number.isFinite(raw) && raw >= 1 ? Math.min(12, Math.round(raw)) : 6
-  return base.slice(0, limit)
+  return featured.length ? featured : products
 })
 
 export const catalogReady = reactive({ done: false, source: 'seed' })

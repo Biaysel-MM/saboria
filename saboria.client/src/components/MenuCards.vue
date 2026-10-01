@@ -53,14 +53,14 @@ function showReviews(p) {
           :key="p.id"
           role="button"
           tabindex="0"
-          class="group overflow-hidden rounded-3xl border border-ink/8 bg-white text-left shadow-[0_2px_10px_-6px_rgba(36,26,23,0.25)] transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_24px_48px_-24px_rgba(36,26,23,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand cursor-pointer"
+          class="group overflow-hidden rounded-3xl border border-ink/8 bg-white text-left shadow-[0_2px_10px_-6px_rgba(36,26,23,0.25)] transition-[translate,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_24px_48px_-24px_rgba(36,26,23,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand cursor-pointer"
           :aria-label="inHero(p) ? `Ver ${p.name} en el hero` : p.name"
           @click="pick(p)"
           @keydown.enter.prevent="pick(p)"
           @keydown.space.prevent="pick(p)"
         >
           <div
-            class="relative flex aspect-[4/3] items-center justify-center overflow-hidden p-4"
+            class="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-t-3xl p-4"
             :style="{ background: `radial-gradient(120% 100% at 70% 20%, ${p.c1} 0%, ${p.c2} 55%, ${p.c3} 100%)` }"
           >
             <img
