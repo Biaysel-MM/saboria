@@ -178,6 +178,10 @@ const visibleDots = computed(() => {
   for (let k = 0; k < middle; k++) set.add(mStart + k)
   return [...set].sort((x, y) => x - y)
 })
+/* Orden visual descendente: con "siguiente" moviéndose a la izquierda
+   (dirección de las cards), el número activo también se desplaza hacia
+   la izquierda en vez de saltar a la derecha. */
+const displayDots = computed(() => [...visibleDots.value].reverse())
 
 /* ---------- puntero ---------- */
 let startX = 0
@@ -513,7 +517,7 @@ const pad = (n) => String(n).padStart(2, '0')
 
       <div class="flex items-center gap-2" role="tablist" aria-label="Seleccionar producto">
         <button
-          v-for="i in visibleDots"
+          v-for="i in displayDots"
           :key="'dot-' + heroProducts[i].id"
           type="button"
           class="dot"

@@ -10,7 +10,7 @@ import { activeReviewProduct, closeReviews } from '../state/reviews.js'
 import StarRating from './StarRating.vue'
 
 const router = useRouter()
-const { isAuthenticated } = useAuth()
+const { isAuthenticated, user } = useAuth()
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -20,6 +20,11 @@ const summary = reactive({ avg: 0, count: 0 })
 const mine = ref(null)
 
 const form = reactive({ rating: 0, comment: '' })
+
+// Respuesta plana a una reseña (un solo nivel; varias permitidas).
+const replyTo = ref(null)
+const replyText = ref('')
+const replyBusy = ref(false)
 
 const product = computed(() => activeReviewProduct.value)
 const open = computed(() => !!product.value)
@@ -70,7 +75,11 @@ async function load() {
 }
 
 watch(activeReviewProduct, (p) => {
-  if (p) load()
+  if (p) {
+    replyTo.value = null
+    replyText.value = ''
+    load()
+  }
 })
 
 function onKey(e) {
@@ -123,6 +132,54 @@ function startEdit() {
   editing.value = true
   form.rating = mine.value?.rating || 0
   form.comment = mine.value?.comment || ''
+}
+
+/** Abre (o cierra) el textarea de respuesta bajo una reseña. */
+function toggleReply(r) {
+  if (!isAuthenticated.value) {
+    goLogin()
+    return
+  }
+  replyTo.value = replyTo.value === r.id ? null : r.id
+  replyText.value = ''
+}
+
+async function sendReply() {
+  const text = replyText.value.trim()
+  if (!text || replyBusy.value) return
+  replyBusy.value = true
+  try {
+    await api.post(`/reviews/${replyTo.value}/replies`, { comment: text })
+    replyTo.value = null
+    replyText.value = ''
+    notify('ok', 'Respuesta publicada')
+    await load()
+  } catch (e) {
+    notify('error', e.message)
+  } finally {
+    replyBusy.value = false
+  }
+}
+
+async function deleteReply(rep) {
+  const ok = await askConfirm('¿Eliminar tu respuesta? No se puede deshacer.', {
+    title: 'Eliminar respuesta',
+    confirmLabel: 'Eliminar',
+  })
+  if (!ok) return
+  try {
+    await api.delete(`/reviews/${rep.id}`)
+    notify('ok', 'Respuesta eliminada')
+    await load()
+  } catch (e) {
+    notify('error', e.message)
+  }
+}
+
+/** Inicial del avatar de una respuesta (estilo mensaje). */
+function replyInitial(rep) {
+  const name = (rep.user?.fullName || 'Cliente').trim()
+  return name.charAt(0).toUpperCase()
 }
 
 function goLogin() {
@@ -260,6 +317,93 @@ function formatDate(iso) {
                       </button>
                     </div>
                   </div>
+
+                  <!-- respuestas (estilo mensaje, un solo nivel) -->
+                  <ul
+                    v-if="mine.replies?.length"
+                    class="mt-3 space-y-2 border-t border-ink/8 pt-3"
+                  >
+                    <li
+                      v-for="rep in mine.replies"
+                      :key="rep.id"
+                      class="flex items-start gap-2"
+                    >
+                      <span
+                        class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/15 text-[11px] font-bold text-brand"
+                      >
+                        {{ replyInitial(rep) }}
+                      </span>
+                      <div class="min-w-0 flex-1 rounded-2xl rounded-tl-sm bg-white px-3 py-2">
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="text-xs font-bold text-ink">
+                            {{ rep.user?.fullName || 'Cliente' }}
+                          </span>
+                          <span class="text-[10px] text-ink/40">{{ formatDate(rep.createdAt) }}</span>
+                        </div>
+                        <p class="mt-0.5 break-words text-sm leading-relaxed text-ink/75">
+                          {{ rep.comment }}
+                        </p>
+                      </div>
+                      <button
+                        v-if="user && rep.user?.id === user.id"
+                        type="button"
+                        class="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-ink/35 transition-colors hover:bg-white hover:text-red-600"
+                        aria-label="Eliminar respuesta"
+                        title="Eliminar"
+                        @click="deleteReply(rep)"
+                      >
+                        <Icon icon="carbon:trash-can" :width="13" :height="13" />
+                      </button>
+                    </li>
+                  </ul>
+
+                  <button
+                    type="button"
+                    class="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-ink/45 transition-colors hover:text-brand"
+                    @click="toggleReply(mine)"
+                  >
+                    <Icon icon="carbon:reply" :width="14" :height="14" />
+                    Responder
+                  </button>
+
+                  <div
+                    v-if="replyTo === mine.id"
+                    class="mt-2.5 rounded-xl border border-ink/10 bg-white p-2.5"
+                  >
+                    <textarea
+                      v-model="replyText"
+                      rows="2"
+                      maxlength="1000"
+                      placeholder="Escribe una respuesta…"
+                      class="w-full resize-none rounded-lg border border-ink/15 px-3 py-2 text-sm outline-none transition-colors focus:border-brand"
+                    />
+                    <div class="mt-2 flex items-center justify-between gap-3">
+                      <span class="text-[11px] text-ink/40">{{ replyText.length }}/1000</span>
+                      <div class="flex gap-2">
+                        <button
+                          type="button"
+                          class="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-semibold text-ink/60 transition-colors hover:text-ink"
+                          @click="replyTo = null"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          :disabled="replyBusy || !replyText.trim()"
+                          class="inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-1.5 text-xs font-bold text-cream transition-colors hover:bg-brand disabled:opacity-50"
+                          @click="sendReply"
+                        >
+                          <Icon
+                            :icon="replyBusy ? 'carbon:renew' : 'carbon:send'"
+                            :width="13"
+                            :height="13"
+                            :class="replyBusy ? 'animate-spin' : ''"
+                          />
+                          {{ replyBusy ? 'Enviando…' : 'Enviar' }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </template>
 
                 <template v-else>
@@ -344,6 +488,93 @@ function formatDate(iso) {
                     >
                       {{ r.comment }}
                     </p>
+
+                    <!-- respuestas (estilo mensaje, un solo nivel) -->
+                    <ul
+                      v-if="r.replies?.length"
+                      class="mt-3 space-y-2 border-t border-ink/8 pt-3"
+                    >
+                      <li
+                        v-for="rep in r.replies"
+                        :key="rep.id"
+                        class="flex items-start gap-2"
+                      >
+                        <span
+                          class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/15 text-[11px] font-bold text-brand"
+                        >
+                          {{ replyInitial(rep) }}
+                        </span>
+                        <div class="min-w-0 flex-1 rounded-2xl rounded-tl-sm bg-cream/80 px-3 py-2">
+                          <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs font-bold text-ink">
+                              {{ rep.user?.fullName || 'Cliente' }}
+                            </span>
+                            <span class="text-[10px] text-ink/40">{{ formatDate(rep.createdAt) }}</span>
+                          </div>
+                          <p class="mt-0.5 break-words text-sm leading-relaxed text-ink/75">
+                            {{ rep.comment }}
+                          </p>
+                        </div>
+                        <button
+                          v-if="user && rep.user?.id === user.id"
+                          type="button"
+                          class="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-ink/35 transition-colors hover:bg-white hover:text-red-600"
+                          aria-label="Eliminar respuesta"
+                          title="Eliminar"
+                          @click="deleteReply(rep)"
+                        >
+                          <Icon icon="carbon:trash-can" :width="13" :height="13" />
+                        </button>
+                      </li>
+                    </ul>
+
+                    <button
+                      type="button"
+                      class="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-ink/45 transition-colors hover:text-brand"
+                      @click="toggleReply(r)"
+                    >
+                      <Icon icon="carbon:reply" :width="14" :height="14" />
+                      Responder
+                    </button>
+
+                    <div
+                      v-if="replyTo === r.id"
+                      class="mt-2.5 rounded-xl border border-ink/10 bg-white p-2.5"
+                    >
+                      <textarea
+                        v-model="replyText"
+                        rows="2"
+                        maxlength="1000"
+                        placeholder="Escribe una respuesta…"
+                        class="w-full resize-none rounded-lg border border-ink/15 px-3 py-2 text-sm outline-none transition-colors focus:border-brand"
+                      />
+                      <div class="mt-2 flex items-center justify-between gap-3">
+                        <span class="text-[11px] text-ink/40">{{ replyText.length }}/1000</span>
+                        <div class="flex gap-2">
+                          <button
+                            type="button"
+                            class="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-semibold text-ink/60 transition-colors hover:text-ink"
+                            @click="replyTo = null"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            :disabled="replyBusy || !replyText.trim()"
+                            class="inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-1.5 text-xs font-bold text-cream transition-colors hover:bg-brand disabled:opacity-50"
+                            @click="sendReply"
+                          >
+                            <Icon
+                              :icon="replyBusy ? 'carbon:renew' : 'carbon:send'"
+                              :width="13"
+                              :height="13"
+                              :class="replyBusy ? 'animate-spin' : ''"
+                            />
+                            {{ replyBusy ? 'Enviando…' : 'Enviar' }}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </li>
                 </ul>
               </section>

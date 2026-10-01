@@ -44,6 +44,12 @@ class ModerateDto {
   action!: 'hide' | 'show';
 }
 
+class ReplyDto {
+  @IsString()
+  @MaxLength(1000)
+  comment!: string;
+}
+
 // -------------------------------------------------------------- público
 @Controller('api')
 export class ReviewsController {
@@ -85,7 +91,17 @@ export class ReviewsUserController {
     return this.reviews.upsert(id, user.userId, dto.rating, dto.comment);
   }
 
-  /** Borra la reseña propia. */
+  /** Responde a una reseña (plano, un solo nivel; varias permitidas). */
+  @Post('reviews/:id/replies')
+  reply(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReplyDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.reviews.addReply(id, user.userId, dto.comment);
+  }
+
+  /** Borra la reseña propia (o la respuesta propia). */
   @Delete('reviews/:id')
   removeOwn(
     @Param('id', ParseIntPipe) id: number,

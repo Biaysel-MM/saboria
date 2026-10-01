@@ -82,10 +82,12 @@ model Product {
 }
 
 // Valoración + comentario de un producto. Una reseña por usuario y producto
-// (única compuesta); el admin puede ocultarla sin borrarla.
+// (controlado en el servicio); el admin puede ocultarla sin borrarla.
+// Las respuestas (un solo nivel, sin estrellas) viven en la misma tabla:
+// parentId apunta a la reseña de la que son respuesta y su rating es null.
 model Review {
   id        Int      @id @default(autoincrement())
-  rating    Int      @db.TinyInt // 1..5
+  rating    Int?     @db.TinyInt // 1..5 (null = respuesta a otra reseña)
   comment   String?  @db.Text
   isHidden  Boolean  @default(false) // moderación del admin
   createdAt DateTime @default(now())
@@ -96,8 +98,14 @@ model Review {
   userId    Int
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([productId, userId])
+  // Respuesta plana a otra reseña (solo un nivel; borra en cascada con la
+  // reseña madre). Se permite varias por usuario en el mismo producto.
+  parentId Int?
+  parent   Review?  @relation("ReviewReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Review[] @relation("ReviewReplies")
+
   @@index([productId])
+  @@index([parentId])
 }
 
 // Singleton: siempre existe una fila con id = 1 (la crea el seed).

@@ -33,7 +33,13 @@ const filtered = computed(() => {
   })
 })
 
-const hiddenCount = computed(() => rows.value.filter((r) => r.isHidden).length)
+const hiddenCount = computed(() =>
+  rows.value.reduce(
+    (n, r) =>
+      n + (r.isHidden ? 1 : 0) + (r.replies?.filter((x) => x.isHidden).length ?? 0),
+    0,
+  ),
+)
 
 async function load() {
   loading.value = true
@@ -73,6 +79,25 @@ async function removeRow(r) {
     await api.delete(`/admin/reviews/${r.id}`)
     rows.value = rows.value.filter((x) => x.id !== r.id)
     notify('ok', 'Comentario eliminado')
+  } catch (e) {
+    notify('error', e.message)
+  } finally {
+    busyId.value = null
+  }
+}
+
+/** Borra una respuesta (hija) de su reseña padre en la lista. */
+async function removeReply(parent, rep) {
+  const ok = await askConfirm(
+    `¿Eliminar la respuesta de ${rep.user?.fullName || 'este usuario'}? Esta acción no se puede deshacer.`,
+    { title: 'Eliminar respuesta', confirmLabel: 'Eliminar' },
+  )
+  if (!ok) return
+  busyId.value = rep.id
+  try {
+    await api.delete(`/admin/reviews/${rep.id}`)
+    parent.replies = parent.replies.filter((x) => x.id !== rep.id)
+    notify('ok', 'Respuesta eliminada')
   } catch (e) {
     notify('error', e.message)
   } finally {
@@ -258,6 +283,76 @@ function rowImage(r) {
             </button>
           </div>
         </div>
+
+        <!-- respuestas de la reseña -->
+        <ul
+          v-if="r.replies?.length"
+          class="mt-3 space-y-2 border-t border-ink/8 pt-3"
+        >
+          <li
+            v-for="rep in r.replies"
+            :key="rep.id"
+            class="flex flex-wrap items-start justify-between gap-2 rounded-2xl bg-cream/70 p-3"
+          >
+            <div class="flex min-w-0 flex-1 items-start gap-2">
+              <span
+                class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/15 text-[11px] font-bold text-brand"
+              >
+                {{ (rep.user?.fullName || 'U').trim().charAt(0).toUpperCase() }}
+              </span>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-xs font-bold text-ink">
+                    {{ rep.user?.fullName || 'Usuario' }}
+                  </span>
+                  <span class="text-[10px] text-ink/40">{{ formatDate(rep.createdAt) }}</span>
+                  <span
+                    class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em]"
+                    :class="
+                      rep.isHidden
+                        ? 'bg-ink/10 text-ink/50'
+                        : 'bg-green-100 text-green-700'
+                    "
+                  >
+                    {{ rep.isHidden ? 'Oculto' : 'Respuesta' }}
+                  </span>
+                </div>
+                <p class="mt-1 text-sm leading-relaxed text-ink/70">
+                  {{ rep.comment }}
+                </p>
+              </div>
+            </div>
+            <div class="flex shrink-0 gap-1.5">
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-colors"
+                :class="
+                  rep.isHidden
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-ink/10 text-ink/60 hover:bg-ink/15'
+                "
+                :disabled="busyId === rep.id"
+                @click="toggleHidden(rep)"
+              >
+                <Icon
+                  :icon="rep.isHidden ? 'carbon:view' : 'carbon:view-off'"
+                  :width="12"
+                  :height="12"
+                />
+                {{ rep.isHidden ? 'Mostrar' : 'Ocultar' }}
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-full border border-red-200 px-2.5 py-1.5 text-[11px] font-bold text-red-500 transition-colors hover:bg-red-50"
+                :disabled="busyId === rep.id"
+                @click="removeReply(r, rep)"
+              >
+                <Icon icon="carbon:trash-can" :width="12" :height="12" />
+                Eliminar
+              </button>
+            </div>
+          </li>
+        </ul>
       </li>
     </ul>
 

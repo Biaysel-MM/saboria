@@ -26,10 +26,11 @@ export class CatalogService {
         orderBy: productOrder,
       }),
       this.prisma.siteSetting.findFirst(),
-      // Promedio de estrellas por producto (solo reseñas visibles).
+      // Promedio de estrellas por producto (solo reseñas principales visibles;
+      // las respuestas no puntúan).
       this.prisma.review.groupBy({
         by: ['productId'],
-        where: { isHidden: false },
+        where: { isHidden: false, parentId: null },
         _avg: { rating: true },
         _count: true,
       }),
