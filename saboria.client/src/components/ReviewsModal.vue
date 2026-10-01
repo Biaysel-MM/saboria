@@ -166,7 +166,7 @@ function formatDate(iso) {
               <img
                 :src="headerImage"
                 :alt="product.name"
-                class="h-full w-full object-contain"
+                class="h-11 w-11 object-contain"
               />
             </span>
             <div class="min-w-0 flex-1">
