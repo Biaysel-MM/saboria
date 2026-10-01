@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, MaxLength, Max, Min } from 'class-validator';
 
 export class UpdateSettingsDto {
   @IsOptional()
@@ -75,4 +75,10 @@ export class UpdateSettingsDto {
   @IsString()
   @MaxLength(2000)
   ctaText?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  heroLimit?: number;
 }

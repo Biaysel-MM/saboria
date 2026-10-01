@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { notify } from './toasts.js'
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 const TOKEN_KEY = 'saboria_token'
@@ -67,8 +68,14 @@ const request = async (path, options = {}) => {
   }
   if (!res.ok) {
     if (res.status === 401) {
+      // Solo es "sesión expirada" si había un token: un login fallido con
+      // credenciales malas NO debe mostrar el aviso de sesión expirada.
+      const hadToken = !!getToken()
       clearSession()
-      notifySessionExpired()
+      if (hadToken) {
+        notifySessionExpired()
+        notify('warn', 'Tu sesión expiró o no es válida. Vuelve a entrar.')
+      }
     }
     const message = Array.isArray(data.message)
       ? data.message.join(', ')
@@ -88,7 +95,9 @@ const loadCurrentUser = async () => {
   try {
     user.value = await request('/auth/me')
   } catch {
-    clearSession()
+    // Un 401 ya limpió la sesión dentro de request(); un fallo de red o un
+    // 5xx NO deben borrar el token: si el backend está caído o reiniciando,
+    // la sesión sigue siendo válida y así no se entra en bucle con el login.
   } finally {
     loading.value = false
   }
@@ -98,6 +107,7 @@ loadCurrentUser()
 
 export const useAuth = () => {
   const isAuthenticated = computed(() => !!user.value)
+  const isAdmin = computed(() => user.value?.role === 'admin')
 
   const initAuth = async () => {
     if (loading.value) await loadCurrentUser()
@@ -112,7 +122,53 @@ export const useAuth = () => {
       })
       setToken(data.token)
       user.value = data.user
-      return { success: true }
+      return { success: true, user: data.user }
+    } catch (e) {
+      return {
+        success: false,
+        error: e.message,
+        // El backend rechaza el login hasta confirmar el correo.
+        needsVerification: /verificar tu correo/i.test(e.message),
+      }
+    }
+  }
+
+  /** Crea la cuenta (queda pendiente de verificación por correo). */
+  const register = async ({ fullName, email, password }) => {
+    try {
+      const data = await request('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ fullName, email, password }),
+      })
+      return { success: true, ...data }
+    } catch (e) {
+      return { success: false, error: e.message }
+    }
+  }
+
+  /** Confirma el código de 6 dígitos e inicia sesión directamente. */
+  const verifyCode = async (email, code) => {
+    try {
+      const data = await request('/auth/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
+      })
+      setToken(data.token)
+      user.value = data.user
+      return { success: true, user: data.user }
+    } catch (e) {
+      return { success: false, error: e.message }
+    }
+  }
+
+  /** Pide un código nuevo (3/min). En dev devuelve el código (devCode). */
+  const resendCode = async (email) => {
+    try {
+      const data = await request('/auth/resend-code', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      })
+      return { success: true, devCode: data.devCode }
     } catch (e) {
       return { success: false, error: e.message }
     }
@@ -127,11 +183,17 @@ export const useAuth = () => {
     user: computed(() => user.value),
     loading: computed(() => loading.value),
     isAuthenticated,
+    isAdmin,
     initAuth,
     signIn,
+    register,
+    verifyCode,
+    resendCode,
     signOut,
   }
 }
 
+/** Rol de la sesión en memoria (null si aún no se cargó). */
+export const getSessionRole = () => user.value?.role ?? null
 export const getAuthToken = getToken
 export { clearSession }

@@ -4,6 +4,9 @@ import HeroCarousel from '../components/HeroCarousel.vue'
 import MenuCards from '../components/MenuCards.vue'
 import CategoriesSection from '../components/CategoriesSection.vue'
 import SiteFooter from '../components/SiteFooter.vue'
+import ReviewsModal from '../components/ReviewsModal.vue'
+import ToastHost from '../components/admin/ToastHost.vue'
+import ConfirmModal from '../components/admin/ConfirmModal.vue'
 </script>
 
 <template>
@@ -14,4 +17,9 @@ import SiteFooter from '../components/SiteFooter.vue'
     <CategoriesSection />
   </main>
   <SiteFooter />
+
+  <!-- reseñas + avisos del sitio público -->
+  <ReviewsModal />
+  <ConfirmModal />
+  <ToastHost />
 </template>

@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { heroProducts, resolveImage } from '../data/products.js'
 import { active } from '../state/hero.js'
+import { openReviews } from '../state/reviews.js'
+import StarRating from './StarRating.vue'
 
 const N = computed(() => heroProducts.value.length || 1)
 const SPAN = 170
@@ -340,16 +342,6 @@ const pad = (n) => String(n).padStart(2, '0')
       aria-hidden="true"
     />
 
-    <!-- pista superior -->
-    <div
-      class="absolute top-[88px] z-40 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-white/60 bg-white/55 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink/60 backdrop-blur-sm lg:flex"
-      :style="{ left: stageLeft }"
-    >
-      <span class="tabular-nums">{{ pad(active + 1) }} / {{ pad(N) }}</span>
-      <span class="h-3 w-px bg-ink/20" />
-      <span>◄ ► desliza para explorar</span>
-    </div>
-
     <!-- escenario de productos -->
     <div class="relative flex-1">
       <div
@@ -420,7 +412,7 @@ const pad = (n) => String(n).padStart(2, '0')
 
     <!-- información: arriba en mobile, izquierda en desktop -->
     <div
-      class="relative z-30 order-first px-6 pt-20 pb-1 text-center lg:absolute lg:left-10 lg:top-1/2 lg:max-w-[360px] lg:-translate-y-1/2 lg:order-none lg:px-0 lg:pt-0 lg:pb-0 xl:left-16"
+      class="hero-info relative z-30 order-first px-6 pt-20 pb-1 text-center lg:absolute lg:left-10 lg:top-1/2 lg:max-w-[360px] lg:-translate-y-1/2 lg:order-none lg:px-0 lg:pt-0 lg:pb-0 xl:left-16"
     >
       <Transition name="info" mode="out-in">
         <div :key="current.id">
@@ -437,12 +429,38 @@ const pad = (n) => String(n).padStart(2, '0')
             {{ current.name }}
           </h1>
 
-          <p class="mx-auto mt-3 max-w-[34ch] text-[15px] leading-relaxed text-ink/65 line-clamp-2 lg:line-clamp-none">
+          <p class="desc mx-auto mt-3 max-w-[34ch] text-[15px] leading-relaxed text-ink/65 line-clamp-2 lg:line-clamp-none">
             {{ current.description }}
           </p>
 
-          <div class="mt-5 flex flex-col items-center gap-4">
-            <span class="font-display text-[32px] font-semibold leading-none text-ink">
+          <!-- estrellas siempre (vacías si no hay reseñas) + botón colorido;
+               el promedio solo cuando existe -->
+          <div class="hero-reviews mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+            <span class="flex items-center gap-2">
+              <StarRating :value="current.ratingAvg" :size="16" />
+              <span
+                v-if="current.ratingCount"
+                class="text-sm font-bold text-ink/65"
+              >
+                {{ current.ratingAvg.toFixed(1) }}
+              </span>
+            </span>
+            <button
+              type="button"
+              class="rounded-full px-5 py-2.5 text-xs font-bold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+              :style="{
+                background: 'var(--accent)',
+                boxShadow: '0 14px 26px -12px var(--glow)',
+              }"
+              aria-label="Reseñas del producto destacado"
+              @click="openReviews(current)"
+            >
+              Reseñas
+            </button>
+          </div>
+
+          <div class="hero-cta mt-5 flex flex-col items-center gap-4">
+            <span class="hero-price font-display text-[32px] font-semibold leading-none text-ink">
               RD${{ current.price }}
             </span>
             <a
@@ -461,9 +479,9 @@ const pad = (n) => String(n).padStart(2, '0')
       </Transition>
     </div>
 
-    <!-- controles -->
+    <!-- controles (z-50: siempre por encima de las imágenes del carrusel) -->
     <div
-      class="relative z-30 flex items-center justify-center gap-5 px-6 pb-24 pt-4 lg:absolute lg:bottom-24 lg:left-1/2 lg:-translate-x-1/2 lg:px-0 lg:pb-0 lg:pt-0"
+      class="relative z-50 flex items-center justify-center gap-5 px-6 pb-24 pt-4 lg:absolute lg:bottom-24 lg:left-1/2 lg:-translate-x-1/2 lg:px-0 lg:pb-0 lg:pt-0"
     >
       <button
         type="button"
@@ -526,6 +544,51 @@ const pad = (n) => String(n).padStart(2, '0')
   .hero-item {
     width: clamp(340px, 38vw, 520px);
     height: clamp(440px, 60vh, 660px);
+  }
+}
+
+/* móvil pequeño: imágenes y textos más compactos; los controles
+   (flechas + dots) nunca quedan tapados ni desbordados */
+@media (max-width: 400px) {
+  .hero-item {
+    width: clamp(150px, 44vw, 180px);
+    height: clamp(150px, 30vh, 200px);
+  }
+
+  .hero-item-fallback {
+    width: clamp(96px, 26vw, 136px);
+    height: clamp(96px, 26vw, 136px);
+    font-size: clamp(40px, 10vw, 56px);
+  }
+
+  div.hero-info {
+    padding-top: 4.5rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .hero-info h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(24px, 7vw, 28px);
+  }
+
+  .hero-info .desc {
+    margin-top: 0.5rem;
+    font-size: 13.5px;
+  }
+
+  .hero-info .hero-reviews {
+    margin-top: 0.75rem;
+    column-gap: 0.5rem;
+  }
+
+  .hero-info .hero-cta {
+    margin-top: 1rem;
+    gap: 0.75rem;
+  }
+
+  .hero-info .hero-price {
+    font-size: 26px;
   }
 }
 

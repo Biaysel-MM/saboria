@@ -12,16 +12,28 @@ datasource db {
   provider = "mysql"
 }
 
-// Admin único (seed). Registro público no existe.
-model Admin {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique @db.VarChar(255)
-  passwordHash String   @db.VarChar(100)
-  fullName     String   @default("Administrador") @db.VarChar(120)
-  isActive     Boolean  @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+// Usuarios del sitio: el admin del panel (seed) y los clientes que se
+// registran para comentar/valorar. Un solo login para todo.
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @db.VarChar(100)
+  fullName     String    @db.VarChar(120)
+  // 'cliente' (por defecto) | 'admin' (entra al panel)
+  role         String    @default("cliente") @db.VarChar(20)
+
+  // Verificación de correo por código de 6 dígitos: la cuenta no sirve
+  // hasta que el código se confirma.
+  emailVerified        Boolean   @default(false)
+  verifyCode           String?   @db.VarChar(10)
+  verifyCodeExpiresAt  DateTime?
+
+  isActive   Boolean   @default(true) // suspendido por el admin
+  lastLoginAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  reviews Review[]
 }
 
 model Category {
@@ -64,7 +76,28 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  reviews Review[]
+
   @@index([categoryId])
+}
+
+// Valoración + comentario de un producto. Una reseña por usuario y producto
+// (única compuesta); el admin puede ocultarla sin borrarla.
+model Review {
+  id        Int      @id @default(autoincrement())
+  rating    Int      @db.TinyInt // 1..5
+  comment   String?  @db.Text
+  isHidden  Boolean  @default(false) // moderación del admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId])
 }
 
 // Singleton: siempre existe una fila con id = 1 (la crea el seed).
@@ -89,6 +122,9 @@ model SiteSetting {
 
   ctaTitle String @db.VarChar(160)
   ctaText  String @db.Text
+
+  // Maximo de productos en el hero (dots del carrusel)
+  heroLimit Int @default(6)
 
   updatedAt DateTime @updatedAt
 }

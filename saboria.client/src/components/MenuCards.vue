@@ -1,16 +1,28 @@
 <script setup>
 import { products, heroProducts, resolveImage, siteTexts } from '../data/products.js'
 import { active } from '../state/hero.js'
+import { openReviews } from '../state/reviews.js'
+import StarRating from './StarRating.vue'
 
 /** Si esta tarjeta corresponde al producto activo del hero. */
 function isHeroActive(p) {
   return heroProducts.value[active.value]?.id === p.id
 }
 
+/** Si el producto está dentro de la lista (limitada) del hero. */
+function inHero(p) {
+  return heroProducts.value.some((x) => x.id === p.id)
+}
+
 function pick(p) {
   const idx = heroProducts.value.findIndex((x) => x.id === p.id)
   if (idx >= 0) active.value = idx
   document.getElementById('inicio')?.scrollIntoView({ behavior: 'smooth' })
+}
+
+/** Abre las reseñas sin disparar el "pick" del hero. */
+function showReviews(p) {
+  openReviews(p)
 }
 </script>
 
@@ -34,13 +46,18 @@ function pick(p) {
       </div>
 
       <div class="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 sm:gap-5 lg:grid-cols-5">
-        <button
+        <!-- div con rol button: el HTML no permite botones anidados y la
+             tarjeta contiene botones propios (reseñas). -->
+        <div
           v-for="(p, i) in products"
           :key="p.id"
-          type="button"
-          class="group overflow-hidden rounded-3xl border border-ink/8 bg-white text-left shadow-[0_2px_10px_-6px_rgba(36,26,23,0.25)] transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_24px_48px_-24px_rgba(36,26,23,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          :aria-label="p.isFeatured ? `Ver ${p.name} en el hero` : p.name"
+          role="button"
+          tabindex="0"
+          class="group overflow-hidden rounded-3xl border border-ink/8 bg-white text-left shadow-[0_2px_10px_-6px_rgba(36,26,23,0.25)] transition-all duration-300 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_24px_48px_-24px_rgba(36,26,23,0.4)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand cursor-pointer"
+          :aria-label="inHero(p) ? `Ver ${p.name} en el hero` : p.name"
           @click="pick(p)"
+          @keydown.enter.prevent="pick(p)"
+          @keydown.space.prevent="pick(p)"
         >
           <div
             class="relative flex aspect-[4/3] items-center justify-center overflow-hidden p-4"
@@ -62,30 +79,63 @@ function pick(p) {
               {{ p.tag }}
             </span>
 
+            <!-- producto activo en el hero: punto verde pulsante -->
+            <span
+              v-if="isHeroActive(p)"
+              class="absolute right-3 top-3 flex h-2.5 w-2.5"
+              title="Activo en el hero"
+            >
+              <span
+                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"
+              ></span>
+              <span
+                class="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500"
+              ></span>
+              <span class="sr-only">Activo en el hero</span>
+            </span>
+
             <span
               class="absolute inset-x-0 bottom-0 translate-y-full bg-white/95 px-3 py-2 text-center text-xs font-bold text-ink transition-transform duration-300 group-hover:translate-y-0"
             >
-              {{ p.isFeatured ? 'Ver en el hero →' : 'Solo en el menú' }}
+              {{ inHero(p) ? 'Ver en el hero →' : 'Solo en el menú' }}
             </span>
           </div>
 
-          <div class="p-4">
+          <div class="p-3 sm:p-4">
             <h3 class="font-display text-[15px] font-semibold leading-snug text-ink sm:text-base">
               {{ p.name }}
             </h3>
-            <div class="mt-3 flex items-center justify-between gap-2">
-              <span class="font-display text-lg font-semibold text-ink sm:text-xl">
-                RD${{ p.price }}
-              </span>
+
+            <!-- estrellas siempre (vacías si no hay reseñas); el promedio
+                 solo cuando existe -->
+            <div class="mt-1.5 flex items-center gap-1.5">
+              <StarRating :value="p.ratingAvg" :size="14" />
               <span
-                class="rounded-full px-2.5 py-1 text-[11px] font-bold"
-                :style="{ background: p.accentSoft, color: p.accent }"
+                v-if="p.ratingCount"
+                class="text-xs font-bold text-ink/70"
               >
-                {{ isHeroActive(p) ? '● Activo' : p.isFeatured ? 'Ver' : 'Menú' }}
+                {{ p.ratingAvg.toFixed(1) }}
               </span>
             </div>
+
+            <!-- precio + botón de reseñas (mismo estilo del antiguo "Ver") -->
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <span class="font-display text-base font-semibold text-ink sm:text-xl">
+                RD${{ p.price }}
+              </span>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold transition-transform hover:-translate-y-0.5"
+                :style="{ background: p.accentSoft, color: p.accent }"
+                :aria-label="`Ver reseñas de ${p.name}`"
+                @click.stop="showReviews(p)"
+              >
+                <Icon icon="carbon:review" :width="12" :height="12" />
+                Reseñas
+              </button>
+            </div>
           </div>
-        </button>
+        </div>
       </div>
     </div>
   </section>

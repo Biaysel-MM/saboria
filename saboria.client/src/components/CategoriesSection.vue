@@ -32,7 +32,7 @@ const GENERAL = resolveImage('categoriaGeneral.png')
           <img
             :src="resolveImage(c.imageUrl) || GENERAL"
             :alt="c.name"
-            class="h-12 w-12 rounded-2xl object-cover transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6"
+            class="h-12 w-12 rounded-2xl object-contain transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6"
           />
           <h3 class="mt-4 font-display text-lg font-semibold text-ink">{{ c.name }}</h3>
           <p class="mt-1 text-sm text-ink/55">{{ c.note }}</p>

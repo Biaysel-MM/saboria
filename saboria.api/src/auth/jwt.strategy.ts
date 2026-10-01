@@ -6,11 +6,13 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 export interface JwtPayload {
   sub: number;
   email: string;
+  role?: string;
 }
 
 export interface RequestUser {
   userId: number;
   email: string;
+  role: string;
 }
 
 @Injectable()
@@ -24,6 +26,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   validate(payload: JwtPayload): RequestUser {
-    return { userId: payload.sub, email: payload.email };
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      // Tokens antiguos sin rol se tratan como cliente (no admin).
+      role: payload.role ?? 'cliente',
+    };
   }
 }

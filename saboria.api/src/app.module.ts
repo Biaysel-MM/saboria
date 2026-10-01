@@ -9,6 +9,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { SettingsModule } from './settings/settings.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { UsersModule } from './users/users.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -30,6 +32,8 @@ import { HealthController } from './health.controller';
     AuthModule,
     CatalogModule,
     SettingsModule,
+    ReviewsModule,
+    UsersModule,
 
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
   ],

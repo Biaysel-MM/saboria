@@ -15,7 +15,7 @@ export class CatalogService {
 
   /** Datos de la página: productos activos + categorías activas + textos. */
   async getBootstrap() {
-    const [products, categories, settings] = await Promise.all([
+    const [products, categories, settings, ratings] = await Promise.all([
       this.prisma.product.findMany({
         where: { isActive: true },
         orderBy: productOrder,
@@ -26,9 +26,30 @@ export class CatalogService {
         orderBy: productOrder,
       }),
       this.prisma.siteSetting.findFirst(),
+      // Promedio de estrellas por producto (solo reseñas visibles).
+      this.prisma.review.groupBy({
+        by: ['productId'],
+        where: { isHidden: false },
+        _avg: { rating: true },
+        _count: true,
+      }),
     ]);
 
-    return { products, categories, settings };
+    const ratingMap = new Map(
+      ratings.map((r) => [
+        r.productId,
+        { avg: r._avg.rating ?? 0, count: r._count },
+      ]),
+    );
+
+    return {
+      products: products.map((p) => ({
+        ...p,
+        rating: ratingMap.get(p.id) ?? { avg: 0, count: 0 },
+      })),
+      categories,
+      settings,
+    };
   }
 
   // -------------------------------------------------------- admin: productos
@@ -46,7 +67,7 @@ export class CatalogService {
         ...dto,
         tag: await this.tagFor(dto.categoryId, dto.tag),
         categoryId: dto.categoryId ?? null,
-        emoji: dto.emoji || '🍽️',
+        emoji: dto.emoji || '🍓',
         description: dto.description ?? null,
         imageUrl: dto.imageUrl ?? null,
       },
@@ -98,7 +119,7 @@ export class CatalogService {
     return this.prisma.category.create({
       data: {
         ...dto,
-        emoji: dto.emoji || '🍽️',
+        emoji: dto.emoji || '🍓',
         imageUrl: dto.imageUrl || null,
         note: dto.note ?? null,
       },

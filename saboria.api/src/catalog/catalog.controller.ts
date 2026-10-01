@@ -18,7 +18,7 @@ import { diskStorage } from 'multer';
 import { randomUUID } from 'node:crypto';
 import { extname, join } from 'node:path';
 import { mkdirSync } from 'node:fs';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminGuard } from '../auth/admin.guard';
 import { CatalogService } from './catalog.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
@@ -49,7 +49,7 @@ export class MenuController {
 }
 
 // ------------------------------------------------------------------- admin
-@UseGuards(JwtAuthGuard)
+@UseGuards(AdminGuard)
 @Controller('api/admin')
 export class CatalogAdminController {
   constructor(private readonly catalogService: CatalogService) {}

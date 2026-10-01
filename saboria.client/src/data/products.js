@@ -48,6 +48,9 @@ function decorate(p) {
   p.accentSoft = rgba(p.accent, 0.16)
   p.glow = rgba(p.accent, 0.5)
   p.gradient = gradientOf(p)
+  // Reseñas: promedio y contador (0 hasta que llegue el bootstrap).
+  p.ratingAvg = p.ratingAvg ?? 0
+  p.ratingCount = p.ratingCount ?? 0
   return p
 }
 
@@ -61,7 +64,7 @@ function fromApi(p) {
     tag: p.category?.name || p.tag,
     description: p.description || '',
     price: p.price,
-    emoji: p.emoji || '🍽️',
+    emoji: p.emoji || '🍓',
     image: p.imageUrl || null,
     c1: p.c1,
     c2: p.c2,
@@ -70,6 +73,8 @@ function fromApi(p) {
     categoryId: p.categoryId ?? null,
     isFeatured: !!p.isFeatured,
     sortOrder: p.sortOrder ?? 0,
+    ratingAvg: p.rating?.avg ?? 0,
+    ratingCount: p.rating?.count ?? 0,
   })
 }
 
@@ -198,6 +203,7 @@ const seedCategories = [
   { emoji: '🍰', name: 'Pasteles', note: 'Porcionados o completos' },
   { emoji: '🍦', name: 'Helados', note: 'Artesanales' },
   { emoji: '🧇', name: 'Desayunos', note: 'Todo el día' },
+  { emoji: '🧁', name: 'Postres', note: 'Detalles dulces' },
 ]
 
 const seedSettings = {
@@ -220,6 +226,7 @@ const seedSettings = {
   ctaTitle: '¿Se te antojó algo?',
   ctaText:
     'Pide para llevar o reserva tu mesa. Preparamos todo al momento para que llegue fresco.',
+  heroLimit: 6,
 }
 
 /* --------------------------------------------------------------- estado */
@@ -228,12 +235,16 @@ export const products = reactive([...seedProducts])
 export const categories = reactive([...seedCategories])
 export const siteTexts = reactive({ ...seedSettings })
 
-/** Productos que aparecen en el hero (los "destacados" del admin). */
+/** Productos que aparecen en el hero (los "destacados" del admin, hasta
+ *  el límite configurable en Textos del sitio para no saturar los dots). */
 export const heroProducts = computed(() => {
   const featured = products.filter((p) => p.isFeatured)
   // El sitio nunca puede quedarse sin hero: si el admin ocultó todo, usamos
   // la lista completa como último recurso.
-  return featured.length ? featured : products
+  const base = featured.length ? featured : products
+  const raw = Number(siteTexts.heroLimit)
+  const limit = Number.isFinite(raw) && raw >= 1 ? Math.min(12, Math.round(raw)) : 6
+  return base.slice(0, limit)
 })
 
 export const catalogReady = reactive({ done: false, source: 'seed' })
