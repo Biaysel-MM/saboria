@@ -1,8 +1,30 @@
 <script setup>
+import { computed, ref, watch } from 'vue'
 import { products, heroProducts, resolveImage, siteTexts } from '../data/products.js'
 import { active } from '../state/hero.js'
 import { openReviews } from '../state/reviews.js'
+import PaginationBar from './admin/PaginationBar.vue'
 import StarRating from './StarRating.vue'
+
+/** Tarjetas por página. Con menos productos no aparece el paginado. */
+const PAGE_SIZE = 10
+
+const page = ref(1)
+const totalPages = computed(() => Math.max(1, Math.ceil(products.length / PAGE_SIZE)))
+const visibleProducts = computed(() =>
+  products.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE),
+)
+
+/** Si el admin añade o quita productos, la página se mantiene válida. */
+watch(products, () => {
+  if (page.value > totalPages.value) page.value = totalPages.value
+})
+
+/** Cambiar de página deja la vista en el menú, no arriba del todo. */
+function goPage(p) {
+  page.value = p
+  document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' })
+}
 
 /** Si esta tarjeta corresponde al producto activo del hero. */
 function isHeroActive(p) {
@@ -49,7 +71,7 @@ function showReviews(p) {
         <!-- div con rol button: el HTML no permite botones anidados y la
              tarjeta contiene botones propios (reseñas). -->
         <div
-          v-for="(p, i) in products"
+          v-for="p in visibleProducts"
           :key="p.id"
           role="button"
           tabindex="0"
@@ -137,6 +159,13 @@ function showReviews(p) {
           </div>
         </div>
       </div>
+
+      <PaginationBar
+        :page="page"
+        :total="products.length"
+        :page-size="PAGE_SIZE"
+        @update:page="goPage"
+      />
     </div>
   </section>
 </template>
