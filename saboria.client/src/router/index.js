@@ -2,6 +2,23 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { getAuthToken, getSessionRole } from '../stores/auth.js'
 import { notify } from '../stores/toasts.js'
 
+/**
+ * Espera a que exista el elemento de un ancla (hasta ~1s). Hace falta para
+ * los enlaces que saltan a una sección de la home desde otra ruta: la home se
+ * carga de forma diferida y su sección todavía no existe en el primer frame.
+ */
+function waitForElement(selector, attempts = 20) {
+  return new Promise((resolve) => {
+    let tries = 0
+    const tick = () => {
+      const el = document.querySelector(selector)
+      if (el || tries++ >= attempts) return resolve(el)
+      requestAnimationFrame(tick)
+    }
+    tick()
+  })
+}
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -23,6 +40,12 @@ export const router = createRouter({
       path: '/verificar',
       name: 'verificar',
       component: () => import('../pages/Verificar.vue'),
+    },
+    {
+      // lista completa de reseñas de un producto (URL compartible)
+      path: '/producto/:id',
+      name: 'producto',
+      component: () => import('../pages/ProductoReviews.vue'),
     },
 
     {
@@ -93,7 +116,14 @@ export const router = createRouter({
   ],
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) return savedPosition
-    if (to.hash) return { el: to.hash, behavior: 'smooth', top: 96 }
+    if (to.hash) {
+      // La sección destino puede venir de otra ruta (p. ej. /producto/1 →
+      // /#menu), así que su componente aún no está montado: se espera a que
+      // aparezca en el DOM antes de intentar el scroll.
+      return waitForElement(to.hash).then((el) =>
+        el ? { el, behavior: 'smooth', top: 96 } : { top: 0 },
+      )
+    }
     return { top: 0 }
   },
 })

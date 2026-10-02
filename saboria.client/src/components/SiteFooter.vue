@@ -1,11 +1,24 @@
 <script setup>
 import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { siteTexts } from '../data/products.js'
 import logo from '../assets/logoSaboria.png'
+
+const route = useRoute()
+const router = useRouter()
 
 const phoneHref = computed(
   () => 'tel:' + siteTexts.phone.replace(/[^+\d]/g, ''),
 )
+
+/** Igual que el header: desde otra ruta se vuelve a la home con el ancla. */
+function goTo(hash) {
+  if (route.path === '/') {
+    document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
+    return
+  }
+  router.push({ path: '/', hash })
+}
 </script>
 
 <template>
@@ -27,10 +40,10 @@ const phoneHref = computed(
         <div>
           <h3 class="text-sm font-bold uppercase tracking-[0.14em] text-ink/45">Menú</h3>
           <ul class="mt-4 space-y-2.5 text-sm text-ink/65">
-            <li><a href="#inicio" class="transition-colors hover:text-brand">Malteadas</a></li>
-            <li><a href="#inicio" class="transition-colors hover:text-brand">Wraps y desayunos</a></li>
-            <li><a href="#inicio" class="transition-colors hover:text-brand">Jugos y cafés</a></li>
-            <li><a href="#inicio" class="transition-colors hover:text-brand">Pasteles y helados</a></li>
+            <li><button type="button" class="transition-colors hover:text-brand" @click="goTo('#menu')">Malteadas</button></li>
+            <li><button type="button" class="transition-colors hover:text-brand" @click="goTo('#menu')">Wraps y desayunos</button></li>
+            <li><button type="button" class="transition-colors hover:text-brand" @click="goTo('#menu')">Jugos y cafés</button></li>
+            <li><button type="button" class="transition-colors hover:text-brand" @click="goTo('#menu')">Pasteles y helados</button></li>
           </ul>
         </div>
 

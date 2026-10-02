@@ -1,11 +1,12 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import logo from '../assets/logoSaboria.png'
 import { useAuth } from '../stores/auth.js'
 import { notify } from '../stores/toasts.js'
 
 const router = useRouter()
+const route = useRoute()
 const navOpen = ref(false) // menú móvil (hamburgesa)
 const accountOpen = ref(false) // desplegable de la cuenta
 const accountWrap = ref(null)
@@ -18,11 +19,25 @@ const initial = computed(() =>
 const roleLabel = computed(() => (isAdmin.value ? 'Administrador' : 'Cliente'))
 
 const links = [
-  { href: '#inicio', label: 'Inicio' },
-  { href: '#menu', label: 'Menú' },
-  { href: '#categorias', label: 'Categorías' },
-  { href: '#contacto', label: 'Contacto' },
+  { hash: '#inicio', label: 'Inicio' },
+  { hash: '#menu', label: 'Menú' },
+  { hash: '#categorias', label: 'Categorías' },
+  { hash: '#contacto', label: 'Contacto' },
 ]
+
+const onHome = computed(() => route.path === '/')
+
+/** Los enlaces del header apuntan a secciones de la home. Desde otra ruta
+ *  (p. ej. /producto/3) se navega a "/" con el ancla para que el scroll
+ *  ocurra en la home; si ya se está en la home, solo se desplaza. */
+function goTo(hash) {
+  closeAll()
+  if (onHome.value) {
+    document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' })
+    return
+  }
+  router.push({ path: '/', hash })
+}
 
 function toggleAccount() {
   accountOpen.value = !accountOpen.value
@@ -69,23 +84,29 @@ function logout() {
 <template>
   <header class="fixed top-0 right-0 left-0 z-50 px-4 pt-4 sm:px-6">
     <div class="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-4">
-      <a href="#inicio" class="flex items-center" aria-label="Saboria — inicio">
+      <button
+        type="button"
+        class="flex items-center"
+        aria-label="Saboria — inicio"
+        @click="goTo('#inicio')"
+      >
         <img :src="logo" alt="Saboria" class="h-11 w-auto" style="filter: brightness(0)" />
-      </a>
+      </button>
 
       <!-- píldora blanca con los enlaces -->
       <nav
         class="hidden justify-self-center rounded-full border border-ink/5 bg-white px-3 py-2 shadow-[0_14px_40px_-18px_rgba(36,26,23,0.5)] md:flex"
         aria-label="Principal"
       >
-        <a
+        <button
           v-for="l in links"
-          :key="l.href"
-          :href="l.href"
+          :key="l.hash"
+          type="button"
           class="rounded-full px-4 py-1.5 text-sm font-semibold text-ink/70 transition-colors duration-200 hover:bg-cream hover:text-ink"
+          @click="goTo(l.hash)"
         >
           {{ l.label }}
-        </a>
+        </button>
       </nav>
 
       <div class="flex items-center justify-end gap-2">
@@ -144,10 +165,10 @@ function logout() {
 
               <div class="my-1.5 h-px bg-ink/10" />
 
-              <a href="#menu" role="menuitem" class="menu-item" @click="closeAll">
+              <button type="button" role="menuitem" class="menu-item" @click="goTo('#menu')">
                 <Icon icon="carbon:menu" :width="16" :height="16" />
                 Ver menú
-              </a>
+              </button>
               <router-link
                 v-if="isAdmin"
                 to="/admin/productos"
@@ -212,15 +233,15 @@ function logout() {
         class="mx-auto mt-2 flex max-w-7xl flex-col gap-1 rounded-3xl border border-ink/5 bg-white p-4 shadow-[0_20px_50px_-24px_rgba(36,26,23,0.5)] md:hidden"
         aria-label="Móvil"
       >
-        <a
+        <button
           v-for="l in links"
-          :key="'m-' + l.href"
-          :href="l.href"
-          class="rounded-xl px-3 py-2.5 text-sm font-semibold text-ink/75 transition-colors hover:bg-cream hover:text-ink"
-          @click="navOpen = false"
+          :key="'m-' + l.hash"
+          type="button"
+          class="rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink/75 transition-colors hover:bg-cream hover:text-ink"
+          @click="goTo(l.hash)"
         >
           {{ l.label }}
-        </a>
+        </button>
 
         <div class="my-2 h-px bg-ink/10" />
 
