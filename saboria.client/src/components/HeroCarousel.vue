@@ -183,6 +183,13 @@ const visibleDots = computed(() => {
    la izquierda en vez de saltar a la derecha. */
 const displayDots = computed(() => [...visibleDots.value].reverse())
 
+/* Número que se muestra en el punto: los productos llegan en orden inverso
+   (ver data/products.js), así el "1" es el primer destacado del admin y la
+   tira se lee 1..N de izquierda a derecha. */
+function dotNumber(i) {
+  return heroProducts.value.length - i
+}
+
 /* ---------- puntero ---------- */
 let startX = 0
 let startY = 0
@@ -527,7 +534,7 @@ const pad = (n) => String(n).padStart(2, '0')
           :aria-label="heroProducts[i].name"
           @click="onDot(i)"
         >
-          {{ i + 1 }}
+          {{ dotNumber(i) }}
         </button>
       </div>
 

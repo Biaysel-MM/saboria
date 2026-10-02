@@ -38,6 +38,8 @@ class CreateReviewDto {
   comment?: string;
 }
 
+class UpdateReviewDto extends CreateReviewDto {}
+
 class ModerateDto {
   @IsString()
   @IsIn(['hide', 'show'])
@@ -55,14 +57,11 @@ class ReplyDto {
 export class ReviewsController {
   constructor(private readonly reviews: ReviewsService) {}
 
-  /** Reseñas visibles de un producto + promedio + (si hay sesión) la mía. */
+  /** Reseñas visibles de un producto + promedio. */
   @Get('products/:id/reviews')
   @UseGuards(OptionalJwtAuthGuard)
-  list(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user?: RequestUser,
-  ) {
-    return this.reviews.listVisible(id, user?.userId);
+  list(@Param('id', ParseIntPipe) id: number) {
+    return this.reviews.listVisible(id);
   }
 }
 
@@ -72,7 +71,7 @@ export class ReviewsController {
 export class ReviewsUserController {
   constructor(private readonly reviews: ReviewsService) {}
 
-  /** La reseña del usuario actual para este producto (o null). */
+  /** Todas las reseñas del usuario actual para este producto. */
   @Get('products/:id/reviews/mine')
   mine(
     @Param('id', ParseIntPipe) id: number,
@@ -81,14 +80,24 @@ export class ReviewsUserController {
     return this.reviews.findMine(id, user.userId);
   }
 
-  /** Crea o actualiza la reseña propia (una por producto). */
+  /** Publica una reseña nueva (se permiten varias por usuario y producto). */
   @Post('products/:id/reviews')
-  upsert(
+  create(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateReviewDto,
     @CurrentUser() user: RequestUser,
   ) {
-    return this.reviews.upsert(id, user.userId, dto.rating, dto.comment);
+    return this.reviews.create(id, user.userId, dto.rating, dto.comment);
+  }
+
+  /** Edita una reseña propia por id. */
+  @Put('reviews/:id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateReviewDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.reviews.update(id, user.userId, dto.rating, dto.comment);
   }
 
   /** Responde a una reseña (plano, un solo nivel; varias permitidas). */

@@ -81,8 +81,8 @@ model Product {
   @@index([categoryId])
 }
 
-// Valoración + comentario de un producto. Una reseña por usuario y producto
-// (controlado en el servicio); el admin puede ocultarla sin borrarla.
+// Valoración + comentario de un producto. Un usuario puede dejar varias
+// reseñas en el mismo producto; el admin puede ocultarlas sin borrarlas.
 // Las respuestas (un solo nivel, sin estrellas) viven en la misma tabla:
 // parentId apunta a la reseña de la que son respuesta y su rating es null.
 model Review {

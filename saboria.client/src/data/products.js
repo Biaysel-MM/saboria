@@ -1,5 +1,6 @@
 import { reactive, computed } from 'vue'
 import { api } from '../services/api.js'
+import { active } from '../state/hero.js'
 
 /* ------------------------------------------------------------------ assets */
 
@@ -236,13 +237,24 @@ export const siteTexts = reactive({ ...seedSettings })
 
 /** Productos que aparecen en el hero (los "destacados" del admin). Si el
  *  admin marca más de los que caben en una tira de puntos, el carrusel
- *  paginará los números (máx. 6 visibles). */
+ *  paginará los números (máx. 6 visibles).
+ *  Se entregan en orden inverso al del admin: así los puntos numerados se
+ *  leen 1..N de izquierda a derecha empezando por el primer destacado, y al
+ *  pulsar la flecha derecha se avanza al siguiente producto (los números
+ *  suben y las cards salen hacia la derecha). */
 export const heroProducts = computed(() => {
   const featured = products.filter((p) => p.isFeatured)
   // El sitio nunca puede quedarse sin hero: si el admin ocultó todo, usamos
   // la lista completa como último recurso.
-  return featured.length ? featured : products
+  return [...(featured.length ? featured : products)].reverse()
 })
+
+/** El hero empieza en el primer destacado del admin, que con el orden
+ *  inverso es el último índice. */
+export function resetHeroStart() {
+  active.value = Math.max(0, heroProducts.value.length - 1)
+}
+resetHeroStart()
 
 export const catalogReady = reactive({ done: false, source: 'seed' })
 
@@ -273,6 +285,9 @@ export async function loadCatalog() {
       const { id, updatedAt, ...texts } = data.settings
       Object.assign(siteTexts, texts)
     }
+    // El catálogo real puede tener otro número de destacados: el hero
+    // arranca siempre en el primero (último índice del orden inverso).
+    resetHeroStart()
     catalogReady.done = true
     catalogReady.source = 'api'
     return true

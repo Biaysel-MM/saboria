@@ -24,12 +24,12 @@ const repliesVisible = {
 export class ReviewsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Reseñas visibles de un producto + resumen + la del usuario actual.
-   *  Incluye las respuestas visibles de cada reseña (un solo nivel). */
-  async listVisible(productId: number, viewerId?: number) {
+  /** Reseñas visibles de un producto + resumen. Cada reseña incluye las
+   *  respuestas visibles (un solo nivel). Un usuario puede tener varias. */
+  async listVisible(productId: number) {
     await this.ensureProduct(productId);
 
-    const [rows, agg, mine] = await Promise.all([
+    const [rows, agg] = await Promise.all([
       this.prisma.review.findMany({
         where: { productId, isHidden: false, parentId: null },
         orderBy: { createdAt: 'desc' },
@@ -40,12 +40,6 @@ export class ReviewsService {
         _avg: { rating: true },
         _count: true,
       }),
-      viewerId
-        ? this.prisma.review.findFirst({
-            where: { productId, userId: viewerId, parentId: null },
-            include: { replies: repliesVisible },
-          })
-        : null,
     ]);
 
     return {
@@ -54,51 +48,54 @@ export class ReviewsService {
         avg: agg._avg.rating ?? 0,
         count: agg._count,
       },
-      mine: mine && !mine.isHidden ? this.mapReview(mine) : null,
     };
   }
 
+  /** Todas las reseñas principales del usuario en este producto. */
   async findMine(productId: number, userId: number) {
-    const mine = await this.prisma.review.findFirst({
+    const rows = await this.prisma.review.findMany({
       where: { productId, userId, parentId: null },
+      orderBy: { createdAt: 'desc' },
+      include: { replies: repliesVisible },
     });
-    return mine ?? null;
+    return rows.map((r) => this.mapReview(r));
   }
 
-  /** Crea o actualiza la reseña propia (una principal por producto). */
-  async upsert(productId: number, userId: number, rating: number, comment?: string) {
+  /** Publica una reseña nueva: se permiten varias por usuario y producto. */
+  async create(productId: number, userId: number, rating: number, comment?: string) {
     await this.ensureProduct(productId);
 
-    const text = comment?.trim() ? comment.trim() : null;
-    const existing = await this.prisma.review.findFirst({
-      where: { productId, userId, parentId: null },
+    const review = await this.prisma.review.create({
+      data: {
+        productId,
+        userId,
+        rating,
+        comment: comment?.trim() ? comment.trim() : null,
+      },
     });
-    // Una reseña oculta por moderación no se "resucita" reenviándola.
-    if (existing?.isHidden) {
-      throw new BadRequestException(
-        'Tu reseña está en revisión por el administrador',
-      );
+
+    return { review, summary: await this.summaryOf(productId) };
+  }
+
+  /** Edita una reseña propia por id (sin tocar su moderación). */
+  async update(reviewId: number, userId: number, rating: number, comment?: string) {
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+    if (!review) throw new NotFoundException('La reseña no existe');
+    if (review.userId !== userId) {
+      throw new ForbiddenException('Solo puedes editar tus propias reseñas');
+    }
+    if (review.parentId !== null) {
+      throw new BadRequestException('Una respuesta no lleva calificación');
     }
 
-    const review = existing
-      ? await this.prisma.review.update({
-          where: { id: existing.id },
-          data: { rating, comment: text, isHidden: false },
-        })
-      : await this.prisma.review.create({
-          data: { productId, userId, rating, comment: text },
-        });
-
-    const agg = await this.prisma.review.aggregate({
-      where: { productId, isHidden: false, parentId: null },
-      _avg: { rating: true },
-      _count: true,
+    const updated = await this.prisma.review.update({
+      where: { id: reviewId },
+      data: { rating, comment: comment?.trim() ? comment.trim() : null },
     });
 
-    return {
-      review,
-      summary: { avg: agg._avg.rating ?? 0, count: agg._count },
-    };
+    return { review: updated, summary: await this.summaryOf(review.productId) };
   }
 
   /** Publica una respuesta plana a una reseña visible (un solo nivel).
@@ -196,6 +193,16 @@ export class ReviewsService {
   }
 
   // ------------------------------------------------------------- helpers
+
+  /** Promedio y total de reseñas visibles (sin respuestas) del producto. */
+  private async summaryOf(productId: number) {
+    const agg = await this.prisma.review.aggregate({
+      where: { productId, isHidden: false, parentId: null },
+      _avg: { rating: true },
+      _count: true,
+    });
+    return { avg: agg._avg.rating ?? 0, count: agg._count };
+  }
 
   private mapReview(r: any) {
     return {

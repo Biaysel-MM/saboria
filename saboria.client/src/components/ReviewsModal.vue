@@ -14,10 +14,10 @@ const { isAuthenticated, user } = useAuth()
 
 const loading = ref(false)
 const submitting = ref(false)
-const editing = ref(false)
+const editingId = ref(null)
+const formSection = ref(null)
 const reviews = ref([])
 const summary = reactive({ avg: 0, count: 0 })
-const mine = ref(null)
 
 const form = reactive({ rating: 0, comment: '' })
 
@@ -57,15 +57,12 @@ async function load() {
   loading.value = true
   try {
     const data = await api.get(`/products/${product.value.id}/reviews`)
-    mine.value = data.mine || null
-    // La reseña propia NO se repite en la lista: ya tiene su recuadro
-    // "Tu reseña" con editar/borrar. La lista es solo de los demás.
-    reviews.value = (data.reviews || []).filter((r) => r.id !== mine.value?.id)
+    // Todas las reseñas visibles, incluidas las del propio usuario (se
+    // marcan con "Tu reseña" y traen editar/borrar). Se permiten varias.
+    reviews.value = data.reviews || []
     summary.avg = data.summary?.avg || 0
     summary.count = data.summary?.count || 0
-    editing.value = false
-    form.rating = mine.value?.rating || 0
-    form.comment = mine.value?.comment || ''
+    cancelEdit()
     syncCard()
   } catch (e) {
     notify('error', e.message)
@@ -96,14 +93,14 @@ async function submitReview() {
   }
   submitting.value = true
   try {
-    const data = await api.post(`/products/${product.value.id}/reviews`, {
-      rating: form.rating,
-      comment: form.comment.trim() || undefined,
-    })
-    summary.avg = data.summary?.avg ?? form.rating
-    summary.count = data.summary?.count ?? 1
-    editing.value = false
-    notify('ok', mine.value ? 'Reseña actualizada' : 'Reseña publicada')
+    const payload = { rating: form.rating, comment: form.comment.trim() || undefined }
+    const wasEditing = editingId.value
+    const data = wasEditing
+      ? await api.put(`/reviews/${wasEditing}`, payload)
+      : await api.post(`/products/${product.value.id}/reviews`, payload)
+    summary.avg = data.summary?.avg ?? summary.avg
+    summary.count = data.summary?.count ?? summary.count
+    notify('ok', wasEditing ? 'Reseña actualizada' : 'Reseña publicada')
     await load()
   } catch (e) {
     notify('error', e.message)
@@ -112,26 +109,38 @@ async function submitReview() {
   }
 }
 
-async function deleteMine() {
-  if (!mine.value) return
+/** ¿Esta reseña es del usuario con sesión? */
+function isMine(r) {
+  return !!user.value && r.user?.id === user.value.id
+}
+
+/** Carga una reseña propia en el formulario para editarla. */
+function startEdit(r) {
+  editingId.value = r.id
+  form.rating = r.rating || 0
+  form.comment = r.comment || ''
+  formSection.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
+function cancelEdit() {
+  editingId.value = null
+  form.rating = 0
+  form.comment = ''
+}
+
+async function deleteReview(r) {
   const ok = await askConfirm('¿Eliminar tu reseña? No se puede deshacer.', {
     title: 'Eliminar reseña',
     confirmLabel: 'Eliminar',
   })
   if (!ok) return
   try {
-    await api.delete(`/reviews/${mine.value.id}`)
+    await api.delete(`/reviews/${r.id}`)
     notify('ok', 'Reseña eliminada')
     await load()
   } catch (e) {
     notify('error', e.message)
   }
-}
-
-function startEdit() {
-  editing.value = true
-  form.rating = mine.value?.rating || 0
-  form.comment = mine.value?.comment || ''
 }
 
 /** Abre (o cierra) el textarea de respuesta bajo una reseña. */
@@ -261,8 +270,9 @@ function formatDate(iso) {
             </div>
 
             <template v-else>
-              <!-- formulario / mi reseña -->
+              <!-- formulario (nueva reseña o edición de una propia) -->
               <section
+                ref="formSection"
                 class="rounded-2xl border border-ink/10 bg-cream/70 p-4"
                 aria-label="Tu reseña"
               >
@@ -280,135 +290,9 @@ function formatDate(iso) {
                   </button>
                 </template>
 
-                <template v-else-if="mine && !editing">
-                  <div class="flex items-start justify-between gap-3">
-                    <div>
-                      <div class="flex items-center gap-2">
-                        <StarRating :value="mine.rating" :size="16" />
-                        <span class="text-xs font-bold uppercase tracking-[0.1em] text-brand">
-                          Tu reseña
-                        </span>
-                      </div>
-                      <p
-                        v-if="mine.comment"
-                        class="mt-2 text-sm leading-relaxed text-ink/75"
-                      >
-                        {{ mine.comment }}
-                      </p>
-                    </div>
-                    <div class="flex shrink-0 gap-1">
-                      <button
-                        type="button"
-                        class="grid h-8 w-8 place-items-center rounded-lg text-ink/50 transition-colors hover:bg-white hover:text-ink"
-                        aria-label="Editar reseña"
-                        title="Editar"
-                        @click="startEdit"
-                      >
-                        <Icon icon="carbon:edit" :width="15" :height="15" />
-                      </button>
-                      <button
-                        type="button"
-                        class="grid h-8 w-8 place-items-center rounded-lg text-ink/50 transition-colors hover:bg-white hover:text-red-600"
-                        aria-label="Eliminar reseña"
-                        title="Eliminar"
-                        @click="deleteMine"
-                      >
-                        <Icon icon="carbon:trash-can" :width="15" :height="15" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- respuestas (estilo mensaje, un solo nivel) -->
-                  <ul
-                    v-if="mine.replies?.length"
-                    class="mt-3 space-y-2 border-t border-ink/8 pt-3"
-                  >
-                    <li
-                      v-for="rep in mine.replies"
-                      :key="rep.id"
-                      class="flex items-start gap-2"
-                    >
-                      <span
-                        class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/15 text-[11px] font-bold text-brand"
-                      >
-                        {{ replyInitial(rep) }}
-                      </span>
-                      <div class="min-w-0 flex-1 rounded-2xl rounded-tl-sm bg-white px-3 py-2">
-                        <div class="flex items-center justify-between gap-2">
-                          <span class="text-xs font-bold text-ink">
-                            {{ rep.user?.fullName || 'Cliente' }}
-                          </span>
-                          <span class="text-[10px] text-ink/40">{{ formatDate(rep.createdAt) }}</span>
-                        </div>
-                        <p class="mt-0.5 break-words text-sm leading-relaxed text-ink/75">
-                          {{ rep.comment }}
-                        </p>
-                      </div>
-                      <button
-                        v-if="user && rep.user?.id === user.id"
-                        type="button"
-                        class="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-ink/35 transition-colors hover:bg-white hover:text-red-600"
-                        aria-label="Eliminar respuesta"
-                        title="Eliminar"
-                        @click="deleteReply(rep)"
-                      >
-                        <Icon icon="carbon:trash-can" :width="13" :height="13" />
-                      </button>
-                    </li>
-                  </ul>
-
-                  <button
-                    type="button"
-                    class="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-ink/45 transition-colors hover:text-brand"
-                    @click="toggleReply(mine)"
-                  >
-                    <Icon icon="carbon:reply" :width="14" :height="14" />
-                    Responder
-                  </button>
-
-                  <div
-                    v-if="replyTo === mine.id"
-                    class="mt-2.5 rounded-xl border border-ink/10 bg-white p-2.5"
-                  >
-                    <textarea
-                      v-model="replyText"
-                      rows="2"
-                      maxlength="1000"
-                      placeholder="Escribe una respuesta…"
-                      class="w-full resize-none rounded-lg border border-ink/15 px-3 py-2 text-sm outline-none transition-colors focus:border-brand"
-                    />
-                    <div class="mt-2 flex items-center justify-between gap-3">
-                      <span class="text-[11px] text-ink/40">{{ replyText.length }}/1000</span>
-                      <div class="flex gap-2">
-                        <button
-                          type="button"
-                          class="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-semibold text-ink/60 transition-colors hover:text-ink"
-                          @click="replyTo = null"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="button"
-                          :disabled="replyBusy || !replyText.trim()"
-                          class="inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-1.5 text-xs font-bold text-cream transition-colors hover:bg-brand disabled:opacity-50"
-                          @click="sendReply"
-                        >
-                          <Icon
-                            :icon="replyBusy ? 'carbon:renew' : 'carbon:send'"
-                            :width="13"
-                            :height="13"
-                            :class="replyBusy ? 'animate-spin' : ''"
-                          />
-                          {{ replyBusy ? 'Enviando…' : 'Enviar' }}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </template>
-
                 <template v-else>
                   <p class="text-xs font-bold uppercase tracking-[0.12em] text-ink/50">
-                    {{ mine ? 'Edita tu reseña' : 'Califica este producto' }}
+                    {{ editingId ? 'Edita tu reseña' : 'Califica este producto' }}
                   </p>
                   <div class="mt-2 flex items-center gap-3">
                     <StarRating
@@ -434,10 +318,10 @@ function formatDate(iso) {
                     </span>
                     <div class="flex gap-2">
                       <button
-                        v-if="mine"
+                        v-if="editingId"
                         type="button"
                         class="rounded-full border border-ink/15 px-4 py-2 text-sm font-semibold text-ink/60 transition-colors hover:bg-white hover:text-ink"
-                        @click="editing = false"
+                        @click="cancelEdit"
                       >
                         Cancelar
                       </button>
@@ -453,16 +337,16 @@ function formatDate(iso) {
                           :height="14"
                           :class="submitting ? 'animate-spin' : ''"
                         />
-                        {{ submitting ? 'Enviando…' : mine ? 'Guardar' : 'Publicar' }}
+                        {{ submitting ? 'Enviando…' : editingId ? 'Guardar cambios' : 'Publicar' }}
                       </button>
                     </div>
                   </div>
                 </template>
               </section>
 
-              <!-- lista (solo reseñas de otros usuarios) -->
+              <!-- lista (todas las reseñas; las propias marcadas) -->
               <section class="mt-5" aria-label="Reseñas">
-                <div v-if="!reviews.length && !mine" class="py-6 text-center">
+                <div v-if="!reviews.length" class="py-6 text-center">
                   <p class="text-sm text-ink/55">
                     Todavía no hay reseñas. ¡Sé el primero en opinar!
                   </p>
@@ -473,11 +357,46 @@ function formatDate(iso) {
                     :key="r.id"
                     class="rounded-2xl border border-ink/8 bg-white p-4"
                   >
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="text-sm font-semibold text-ink">
-                        {{ r.user?.fullName || 'Cliente' }}
+                    <div class="flex items-start justify-between gap-2">
+                      <span class="flex min-w-0 items-center gap-2">
+                        <span
+                          class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/15 text-[11px] font-bold text-brand"
+                        >
+                          {{ replyInitial(r) }}
+                        </span>
+                        <span class="truncate text-sm font-semibold text-ink">
+                          {{ r.user?.fullName || 'Cliente' }}
+                        </span>
+                        <span
+                          v-if="isMine(r)"
+                          class="shrink-0 rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-brand"
+                        >
+                          Tu reseña
+                        </span>
                       </span>
-                      <span class="text-xs text-ink/40">{{ formatDate(r.createdAt) }}</span>
+                      <span class="flex shrink-0 items-center gap-1">
+                        <span class="mr-1 text-xs text-ink/40">{{ formatDate(r.createdAt) }}</span>
+                        <template v-if="isMine(r)">
+                          <button
+                            type="button"
+                            class="grid h-7 w-7 place-items-center rounded-lg text-ink/45 transition-colors hover:bg-cream hover:text-ink"
+                            aria-label="Editar reseña"
+                            title="Editar"
+                            @click="startEdit(r)"
+                          >
+                            <Icon icon="carbon:edit" :width="14" :height="14" />
+                          </button>
+                          <button
+                            type="button"
+                            class="grid h-7 w-7 place-items-center rounded-lg text-ink/45 transition-colors hover:bg-cream hover:text-red-600"
+                            aria-label="Eliminar reseña"
+                            title="Eliminar"
+                            @click="deleteReview(r)"
+                          >
+                            <Icon icon="carbon:trash-can" :width="14" :height="14" />
+                          </button>
+                        </template>
+                      </span>
                     </div>
                     <div class="mt-1.5 flex items-center gap-2">
                       <StarRating :value="r.rating" :size="14" />
