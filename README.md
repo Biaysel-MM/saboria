@@ -1,4 +1,11 @@
 # Saboria
+
+Menú digital con comunidad para negocios de postres, desayunos, cafés y bebidas. Saboria es la base: cada negocio la adapta con su nombre, logo, colores y datos de contacto.
+
+## Visión
+
+La carta de papel funciona, pero se queda en la mesa. Los clientes ya pasan el día en redes sociales, así que el menú debería estar ahí: un sitio donde ver los productos con foto y precio, dejar reseñas, leer lo que opinan otros y volver la próxima vez. La idea es que entrar a la tienda (física o digital) se sienta como entrar a una pequeña red social del negocio, no como leer una lista de precios.
+
 ## Mejoras pendientes
 
 Lo que falta, por orden de urgencia. Ninguno bloquea el uso actual del sitio.
@@ -26,3 +33,34 @@ El servicio de mail funciona en modo desarrollo (imprime el código de verificac
 
 ### fuera de alcance
 Carrito y checkout. El proyecto es un catálogo con contacto, no una tienda; si algún día se quiere vender en línea, `/producto/:id` ya es la base.
+
+## Hoja de ruta
+
+Funcionalidades nuevas, después de cerrar las mejoras pendientes. Las dos primeras secciones son la dirección del producto; la tercera son ideas para que Saboria se distinga de un menú digital común.
+
+### Comunidad
+- **Fotos de los clientes.** Adjuntar fotos a las reseñas ("así llegó mi malteada"), con la misma moderación que ya tienen los comentarios. Es el contenido más creíble que puede tener un negocio.
+- **Mejores reseñas de la semana.** Una sección en la home con las reseñas destacadas, elegidas por el admin o por votos de "útil".
+- **Lo más pedido esta semana.** Ranking semanal. Ojo: hoy no hay pedidos en el sistema, así que hace falta una señal: un botón "Lo pedí" en el producto, las visitas a `/producto/:id`, o los clics en "Pedir por WhatsApp".
+- **Novedades / nuevas recetas.** Etiqueta "Nuevo" que caduca sola a los 14 días y un apartado propio para lo recién agregado.
+- **Insignias de cliente.** "Primera reseña", "Crítico frecuente", "Probó todo el menú de cafés". Gamificación ligera para que la gente vuelva a opinar.
+
+### Redes y difusión
+- **Publicación automática.** Al crear un producto o destacar una reseña, publicarlo en Instagram y Facebook (Meta Graph API, requiere cuenta profesional) y en el estado o catálogo de WhatsApp Business.
+- **Pedir por WhatsApp.** Botón en cada producto que abre `wa.me` con el mensaje ya escrito ("Hola, quiero una Malteada de Fresa"). Es el cambio más barato de esta lista y el que más conversación genera.
+- **Compartir un producto.** Imagen de vista previa (Open Graph) por producto para que al pegar el enlace en WhatsApp o Instagram aparezca la foto, el precio y las estrellas. Depende del punto de SEO.
+
+### Descubrir el menú
+- **Filtros.** Por categoría, rango de precio, mejor valorados y etiquetas dietéticas (sin gluten, vegano, sin azúcar, contiene frutos secos).
+- **Menú según la hora.** Desayunos arriba por la mañana, cafés y postres por la tarde. Los productos pueden tener horario y "Agotado hoy" desde el panel.
+- **"¿No sabes qué pedir?".** Una ruleta que elige un producto al azar dentro de los filtros activos. Funciona bien en un video y en la mesa.
+- **Va bien con…** Sugerencias de combinación en cada producto (café + croissant), definidas por el admin.
+
+### Ideas recomendadas
+- **Marca blanca de verdad.** Mover nombre, logo, colores, fuentes y contacto a una configuración por negocio editable desde el admin, para levantar un negocio nuevo sin tocar código. Es lo que convierte a Saboria en un producto vendible.
+- **QR por mesa.** Un QR impreso en cada mesa que abre el menú directo. Así la carta de papel lleva al menú digital en vez de competir con él.
+- **Resumen de reseñas con IA.** Una línea por producto con lo que más se repite ("La gente destaca la textura cremosa; algunos la encuentran muy dulce"). Ahorra leer veinte reseñas.
+- **Menú en inglés.** Selector ES/EN para turistas, con traducción asistida y revisión del admin.
+- **Panel de métricas para el dueño.** Productos más vistos, valoración media por semana, reseñas sin responder. Ayuda al dueño a decidir qué mantener en la carta.
+- **Tarjeta de fidelidad digital.** Sellos por visita (10 cafés = 1 gratis) validados con un código en caja, sin tarjetas de cartón.
+- **PWA.** Instalable en el teléfono y con el menú disponible sin conexión.
